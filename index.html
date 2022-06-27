@@ -195,25 +195,29 @@
 				}
 			}
 
+			function setMoveVector(x, y) {
+				moveVector.length = 0;
+				moveVector.push(x, y);
+			}
+
 			window.addEventListener('keydown', function(e) {
 				const code = e.code;
-				moveVector.length = 0;
 				switch (code) {
 					case 'KeyW':
 					case 'ArrowUp':
-						moveVector.push(0, -1);
+						setMoveVector(0, -1);
 						break;
 					case 'KeyD':
 					case 'ArrowRight':
-						moveVector.push(1, 0);
+						setMoveVector(1, 0);
 						break;
 					case 'KeyS':
 					case 'ArrowDown':
-						moveVector.push(0, 1);
+						setMoveVector(0, 1);
 						break;
 					case 'KeyA':
 					case 'ArrowLeft':
-						moveVector.push(-1, 0);
+						setMoveVector(-1, 0);
 						break;
 				}
 			})
