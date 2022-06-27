@@ -1,12 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>JS GameDev Club</title>
-</head>
-<body>
-	
-</body>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>JS GameDev Club</title>
+		<style>
+		body * {
+			box-sizing: border-box;
+		}
+		body {
+			margin: 0;
+			padding: 0;
+			background-color: black;
+			--cell-size: 16px;
+		}
+		#grid {
+			font-size: var(--cell-size);
+			display: grid;
+			grid-template-columns: repeat(30,var(--cell-size));
+    	flex-wrap: wrap;
+			row-gap: 1px;
+			column-gap: 1px;
+			position: fixed;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%,-50%);
+		}
+		#grid.gameover .cell.food,
+		#grid.gameover .cell.snake {
+			background-color: silver;
+		}
+		.cell {
+			width: 1em;
+			height: 1em;
+			background-color: dimgray;
+		}
+		.cell.snake {
+			background-color: lawngreen;
+		}
+		.cell.food {
+			background-color: crimson;
+		}
+	</style>
+	</head>
+	<body>
+		<div id="grid"></div>
+		<script>
+			const startLength = 3;
+			const cellSize = 16;
+			const cols = 30;
+			const rows = 30;
+			const colsMax = cols - 1;
+			const rowsMax = rows - 1;
+			const snake = [];
+			const center = [Math.floor(colsMax/2), Math.floor(rowsMax/2)];
+			const moveVector = [0, 1];
+
+			let foodIndex = -1;
+			let snakeIsMoving = false;
+			let timeout = 300;
+			let nextUpdateTime = timeout;
+			let prevPopIndex;
+
+			const grid = document.querySelector('#grid');
+			for (let row = 0; row < rows; row++) {
+				for (let col = 0; col < cols; col++) {
+					grid.append(createCell())
+				}
+			}
+
+			function clearCell(el) {
+				el.classList.remove('snake', 'food');
+			}
+
+			function activateCell(el) {
+				el.classList.add('snake');
+			}
+
+			function setFoodCell(el) {
+				el.classList.add('food');
+			}
+
+			function clearFoodCell(el) {
+				el.classList.remove('food');
+			}
+			
+			function createCell() {
+				const el = document.createElement('div');
+				el.classList.add('cell');
+				return el;
+			}
+
+			function posToIndex(x, y) {
+				return y * cols + x;
+			}
+
+			function indexToPos(index) {
+				return [index % cols, Math.floor(index / rows)];
+			}
+
+			function randomizeFood() {
+				if (foodIndex >= 0) {
+					clearFoodCell(grid.children[foodIndex]);
+				}
+				while(foodIndex < 0 || snake.includes(foodIndex)){
+					foodIndex = Math.floor((Math.random() * grid.children.length));
+				}
+			}
+
+			function snakeEatFood() {
+				if (snake[0] === foodIndex) {
+					const tail = snake[snake.length-1];
+					snake.push(tail);
+					randomizeFood();
+					timeout = Math.max(20, timeout*.975);
+				};
+			}
+
+			function snakeCollides() {
+				const [x, y] = indexToPos(snake[0]);
+				const [mx, my] = moveVector;
+				const collidesEdge = x+mx < 0 || x+mx >= cols || y+my < 0 || y+my >= rows;
+				const collidesSelf = snake.slice(1).includes(snake[0]);
+				return collidesEdge || collidesSelf;
+			}
+
+			function fillSnake() {
+				snake.length = 0;
+				for (let i = startLength; i > 0; i--) {
+					const gridIndex = posToIndex(center[0], center[1]+i);
+					snake.push(gridIndex);
+				}
+			}
+
+			function clearGrid() {
+				for (let i = 0; i < grid.children.length; i++){
+					clearCell(grid.children[i]);
+				}
+			}
+
+			function moveBack() {
+				snake.shift();
+				prevPopIndex !== undefined && snake.push(prevPopIndex);
+			}
+
+			function gameOver() {
+				snakeIsMoving = false;
+				grid.classList.add('gameover');
+				moveBack();
+			}
+
+			function startGame() {
+				grid.classList.remove('gameover');
+				snakeIsMoving = true;
+				fillSnake();
+				randomizeFood();
+			}
+
+			function drawFood() {
+				setFoodCell(grid.children[foodIndex]);
+			}
+
+			function drawSnake() {
+				snake.forEach(function(gridIndex) {
+					activateCell(grid.children[gridIndex]);
+				});
+			}
+
+			function moveSnake() {
+				const [x, y] = indexToPos(snake[0]);
+				const [mx, my] = moveVector;
+				const nextHeadIndex = posToIndex(x + mx, y + my);
+				snake.unshift(nextHeadIndex);
+				prevPopIndex = snake.pop();
+			}
+
+			function update() {
+				if (snakeCollides()) {
+					gameOver();
+				}
+				clearGrid();
+				moveSnake();
+				drawFood();
+				drawSnake();
+				snakeEatFood();
+			}
+
+			function gameLoop(timeNow) {
+				requestAnimationFrame(gameLoop);
+				if (snakeIsMoving && nextUpdateTime < timeNow) {
+					nextUpdateTime = timeNow + timeout;
+					update();
+				}
+			}
+
+			window.addEventListener('keydown', function(e) {
+				const code = e.code;
+				moveVector.length = 0;
+				switch (code) {
+					case 'KeyW':
+					case 'ArrowUp':
+						moveVector.push(0, -1);
+						break;
+					case 'KeyD':
+					case 'ArrowRight':
+						moveVector.push(1, 0);
+						break;
+					case 'KeyS':
+					case 'ArrowDown':
+						moveVector.push(0, 1);
+						break;
+					case 'KeyA':
+					case 'ArrowLeft':
+						moveVector.push(-1, 0);
+						break;
+				}
+			})
+
+			startGame();
+			requestAnimationFrame(gameLoop);
+	</script>
+	</body>
 </html>
